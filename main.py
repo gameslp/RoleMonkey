@@ -1,6 +1,17 @@
+import asyncio
 import discord
 import random
 from discord.ext import commands
+from flask import Flask, jsonify
+from threading import Thread
+
+app = Flask(__name__)
+
+# Global variables to track progress
+logs = []
+
+# Global dictionary to store role mappings per guild
+role_dicts = {}
 
 # Set up the bot with the required intents
 intents = discord.Intents.all()
@@ -9,6 +20,17 @@ intents.messages = True
 intents.members = True  # Ensure we have access to member information
 
 bot = commands.Bot(command_prefix="!", intents=intents)
+
+emoji_list = [
+            "🔴", "🟠", "🟡", "🟢", "🔵", "🟣", "🟤", "⚫", "⚪", "🔶",
+            "🔷", "🟥", "🟧", "🟨", "🟩", "🟦", "🟪", "🔺", "🔻", "⬛",
+            "⬜", "⭐", "🌟", "✨", "⚡", "🔥", "💧", "🌈", "🌙", "☀️",
+            "🍎", "🍊", "🍌", "🍉", "🍇", "🍓", "🍈", "🥭", "🌽", "🍅",
+]
+
+@app.route('/progress', methods=['GET'])
+def get_progress():
+    return f"<body style='background-color:black; color:white;'><pre>{'\n'.join(logs)}</pre></body>"
 
 def is_allowed_user(user_id):
     try:
@@ -23,8 +45,30 @@ def is_allowed_user(user_id):
 def random_color():
     return discord.Color(random.randint(0x000000, 0xFFFFFF))
 
-# Global dictionary to store role mappings per guild
-role_dicts = {}
+async def create_roles_fun(ctx, roles):
+    existing_roles = ctx.guild.roles
+    created_roles = []
+    rate = 1
+    for role_name in roles:
+        if rate % 3 == 0:
+            logs.append(f"Czekam 5 sekund...")
+            await asyncio.sleep(5)
+        role = None
+        for existing_role in existing_roles:
+            if existing_role.name == role_name:
+                role = existing_role
+                break
+        if role:
+            print(f"Rola już istnieje: {role_name}")
+            logs.append(f"Rola już istnieje: {role_name}")
+            created_roles.append(role)
+        else:
+            print(f"Creating role: {role_name}")
+            logs.append(f"Tworze rolę: {role_name}")
+            role = await ctx.guild.create_role(name=role_name, color=random_color())
+            rate += 1
+            created_roles.append(role)
+    return created_roles
 
 # Load roles from a text file, create them in the server, and send a message with reactions
 @bot.command()
@@ -32,72 +76,107 @@ role_dicts = {}
 @commands.has_permissions(manage_roles=True)
 async def create_roles(ctx):
     try:
-        with open('roles.txt', 'r') as file:
-            roles = [role.strip() for role in file.readlines() if role.strip()]
+        await ctx.send("Tworzę role... (~1min)")
+        args = ctx.message.content.split(" ")[1:]
 
-        role_message_template = "Wybierz grupę ćwiczeniową:\n\n"
-        emoji_list = [
-            "🔴", "🟠", "🟡", "🟢", "🔵", "🟣", "🟤", "⚫", "⚪", "🔶",
-            "🔷", "🟥", "🟧", "🟨", "🟩", "🟦", "🟪", "🔺", "🔻", "⬛",
-            "⬜", "⭐", "🌟", "✨", "⚡", "🔥", "💧", "🌈", "🌙", "☀️",
-            "🍎", "🍊", "🍌", "🍉", "🍇", "🍓", "🍈", "🥭", "🌽", "🍅",
-        ]
-        # Check if roles exceed the number of emojis
-        if len(roles) > len(emoji_list):
-            await ctx.send("Za mało emoji. Maksymalna liczba ról to 40.")
-            return
+        if len(args) != 1:
+            await ctx.send("Użycie: !create_roles <angielski/cwiczenia/wykladowe>")
 
-        created_roles = []
-        message_ids = []  # To store message IDs
+        if args[0] == "angielski":
+            with open('roles_angielski.txt', 'r') as file:
+                roles_angielski = [role.strip() for role in file.readlines() if role.strip()]
+            created_roles_angielski = await create_roles_fun(ctx, roles_angielski)
+            with open("role_angielski_ids.txt", "w") as file:
+                file.write("\n".join([str(role.id) for role in created_roles_angielski]))
 
-        # Create roles and messages in batches of 20
-        for i in range(0, len(roles), 20):
-            role_batch = roles[i:i+20]
-            role_message = role_message_template
+        if args[0] == "cwiczenia":
+            with open('roles_cwiczenia.txt', 'r') as file:
+                roles_cwiczenia = [role.strip() for role in file.readlines() if role.strip()]
+            created_roles_cwiczenia = await create_roles_fun(ctx, roles_cwiczenia)
+            with open("role_cwiczenia_ids.txt", "w") as file:
+                file.write("\n".join([str(role.id) for role in created_roles_cwiczenia]))
+        if args[0] == "wykladowe":
+            with open('roles_wykladowe.txt', 'r') as file:
+                roles_wykladowe = [role.strip() for role in file.readlines() if role.strip()]
+            created_roles_wykladowe = await create_roles_fun(ctx, roles_wykladowe)
+            with open("role_wykladowe_ids.txt", "w") as file:
+                file.write("\n".join([str(role.id) for role in created_roles_wykladowe]))
 
-            created_roles_batch = []
-            for index, role_name in enumerate(role_batch):
-                role = await ctx.guild.create_role(name=role_name, color=random_color())
-                created_roles_batch.append(role)
-                created_roles.append(role)
+        await ctx.send("Role zostały utworzone.")
 
-                # Add role to the message
-                role_message += f"{emoji_list[index]} - {role_name}\n"
+    except Exception as e:
+        await ctx.send(f"Error: {str(e)}")
 
-            # Send the role message
-            role_msg = await ctx.send(role_message)
-            message_ids.append(role_msg.id)
+async def sendRoles(rolesIds, ctx, role_message_template):
+    for i in range(0, len(rolesIds), 20):
+        role_batch = rolesIds[i:i+20]
+        role_message = role_message_template
 
-            # Add reactions for each role
-            for index in range(len(role_batch)):
-                await role_msg.add_reaction(emoji_list[index])
+        for index, role_id in enumerate(role_batch):
+            role = discord.utils.get(ctx.guild.roles, id=int(role_id))
+            role_message += f"{emoji_list[index]} - {role.name}\n"
 
-            # Initialize role_dict for this guild if it doesn't exist
-            if ctx.guild.id not in role_dicts:
-                role_dicts[ctx.guild.id] = {}
+        role_msg = await ctx.send(role_message)
 
-            # Define a dictionary to map reactions to roles
-            role_dicts[ctx.guild.id].update({emoji_list[index]: created_roles_batch[index] for index in range(len(role_batch))})
+        for index in range(len(role_batch)):
+            await role_msg.add_reaction(emoji_list[index])
 
-        # Save the message IDs to edit later
-        with open('message_ids.txt', 'w') as msg_file:
-            msg_file.write('\n'.join(map(str, message_ids)))
+        if ctx.guild.id not in role_dicts:
+            role_dicts[ctx.guild.id] = {}
 
-        # Define a check function to ensure reactions are from users, not the bot
+        role_dicts[ctx.guild.id].update({emoji_list[index]: discord.utils.get(ctx.guild.roles, id=int(role_id)) for index, role_id in enumerate(role_batch)})
+
+        with open("message_ids.txt", "a") as file:
+            file.write(f"{role_msg.id}\n")
+
+    return role_dicts
+
+@bot.command()
+@commands.check(lambda ctx: is_allowed_user(ctx.author.id))
+@commands.has_permissions(manage_roles=True)
+async def send_roles(ctx):
+    try:
+        await ctx.send("Wysyłam role... (~30s)")
+
+        with open("message_ids.txt", "r") as file:
+            message_ids = [int(line.strip()) for line in file.readlines()]
+            for message_id in message_ids:
+                role_msg = await ctx.fetch_message(message_id)
+                await role_msg.delete()
+        with open("message_ids.txt", "w") as file:
+            file.write("")
+            
+        with open("role_angielski_ids.txt", "r") as file:
+            role_ids_angielski = [int(line.strip()) for line in file.readlines()]
+
+        with open("role_cwiczenia_ids.txt", "r") as file:
+            role_ids_cwiczenia = [int(line.strip()) for line in file.readlines()]
+
+        with open("role_wykladowe_ids.txt", "r") as file:
+            role_ids_wykladowe = [int(line.strip()) for line in file.readlines()]
+        
+        role_message_template_angielski = "Wybierz swoją grupę angielski:\n"
+        role_message_template_cwiczenia = "Wybierz swoje grupę ćwiczenia:\n"
+        role_message_template_wykladowe = "Wybierz swoje grupę wykładową:\n"
+
+        role_dicts = await sendRoles(role_ids_angielski, ctx, role_message_template_angielski)
+        role_dicts = await sendRoles(role_ids_cwiczenia, ctx, role_message_template_cwiczenia)
+        role_dicts = await sendRoles(role_ids_wykladowe, ctx, role_message_template_wykladowe)
+
+        await ctx.send("Wysłano role.")
+
         def check(reaction, user):
             return user != bot.user and str(reaction.emoji) in role_dicts[ctx.guild.id]
-
-        # Wait for reactions and assign/remove roles based on reactions
+        
         while True:
             reaction, user = await bot.wait_for('reaction_add', check=check)
             role = role_dicts[ctx.guild.id][str(reaction.emoji)]
             member = ctx.guild.get_member(user.id)
 
-            # Add role if user reacts
             if role not in member.roles:
                 await member.add_roles(role)
-                await ctx.send(f"Dodano {role.name} dla {user.mention}.")
-            
+                await ctx.send(f"Dodano {role.name} dla {user.mention}.")    
+
             # Wait for unreact event to remove the role
             @bot.event
             async def on_reaction_remove(reaction, user):
@@ -118,88 +197,51 @@ async def create_roles(ctx):
 @commands.has_permissions(manage_roles=True)
 async def delete_roles(ctx):
     try:
-        with open('role_ids.txt', 'r') as file:
-            role_ids = [line.strip() for line in file.readlines()]
+        await ctx.send("Usuwam role... (~30s)")
+        with open("role_angielski_ids.txt", "r") as file:
+            role_ids_angielski = [int(line.strip()) for line in file.readlines()]
 
-        for role_id in role_ids:
+        with open("role_cwiczenia_ids.txt", "r") as file:
+            role_ids_cwiczenia = [int(line.strip()) for line in file.readlines()]
+
+        with open("role_wykladowe_ids.txt", "r") as file:
+            role_ids_wykladowe = [int(line.strip()) for line in file.readlines()]
+
+        roles_ids = role_ids_angielski + role_ids_cwiczenia + role_ids_wykladowe
+
+        for role_id in roles_ids:
             role = discord.utils.get(ctx.guild.roles, id=int(role_id))
             if role:
                 await role.delete()
-                await ctx.send(f"Usunięto role: {role.name}")
+                logs.append(f"Usunięto role: {role.name}")
 
-        # Clear the role_ids.txt file after deleting roles
-        with open('role_ids.txt', 'w') as file:
+        with open("role_angielski_ids.txt", "w") as file:
             file.write("")
 
-        with open('message_id.txt', 'r') as msg_file:
-            message_id = int(msg_file.read())
+        with open("role_cwiczenia_ids.txt", "w") as file:
+            file.write("")
+        
+        with open("role_wykladowe_ids.txt", "w") as file:
+            file.write("")
 
-        role_msg = await ctx.fetch_message(message_id)
+        logs.clear()
+        logs.append("Role zostały usunięte.")
 
-        await role_msg.delete()
-
-        await ctx.send("Usunięto wszystkie role i wiadomość.")
-
-        with open('message_id.txt', 'w') as msg_file:
-            msg_file.write("")
-
-    except Exception as e:
-        await ctx.send(f"Error: {str(e)}")
-
-
-# Command to add a single role and update the message
-@bot.command()
-@commands.check(lambda ctx: is_allowed_user(ctx.author.id))
-@commands.has_permissions(manage_roles=True)
-async def add_role(ctx, role_name):
-    try:
-        with open('roles.txt', 'a') as file:
-            file.write(f"{role_name}\n")
-
-        # Create the new role
-        role = await ctx.guild.create_role(name=role_name, color=random_color())
-
-        # Get the message ID and edit it
-        with open('message_id.txt', 'r') as msg_file:
-            message_id = int(msg_file.read())
-
-        role_msg = await ctx.fetch_message(message_id)
-
-        emoji_list = [
-            "🔴", "🟠", "🟡", "🟢", "🔵", "🟣", "🟤", "⚫", "⚪", "🔶",
-            "🔷", "🟥", "🟧", "🟨", "🟩", "🟦", "🟪", "🔺", "🔻", "⬛",
-            "⬜", "⭐", "🌟", "✨", "⚡", "🔥", "💧", "🌈", "🌙", "☀️",
-        ]
-
-        # Get the number of roles already created
-        with open('role_ids.txt', 'r+') as role_id_file:
-            role_ids = role_id_file.readlines()
-            if len(role_ids) >= len(emoji_list):
-                await ctx.send("Za mało emoji. Maksymalna liczba ról to 30.")
-                return
-            role_id_file.write(f"{role.id}\n")
-
-        # Add the role to the message
-        new_emoji = emoji_list[len(role_ids)]
-        updated_message = role_msg.content + f"\n{new_emoji} - {role_name}\n"
-        await role_msg.edit(content=updated_message)
-
-        # Add the new reaction
-        await role_msg.add_reaction(new_emoji)
-
-        # Update the role dictionary
-        if ctx.guild.id not in role_dicts:
-            role_dicts[ctx.guild.id] = {}
-        role_dicts[ctx.guild.id][new_emoji] = role
-
-        await ctx.send(f"Rola {role_name} została dodana i przypisana do {new_emoji}.")
+        await ctx.send("Role zostały usunięte.")
 
     except Exception as e:
         await ctx.send(f"Error: {str(e)}")
 
+# Start Flask server in a separate thread
+def run_flask():
+    app.run(port=5000)
 
-# Bot token (replace with your actual bot token)
+# Start the Flask server
+flask_thread = Thread(target=run_flask)
+flask_thread.start()
+
 #read from token.private
 with open('token.private', 'r') as file:
     token = file.read().strip()
+
 bot.run(token)
