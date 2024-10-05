@@ -125,8 +125,8 @@ async def sendRoles(rolesIds, ctx, role_message_template):
         for index in range(len(role_batch)):
             await role_msg.add_reaction(emoji_list[index])
 
-        if ctx.messaage.id not in role_dicts:
-            role_dicts[ctx.message.id] = {}
+        if role_msg.id not in role_dicts:
+            role_dicts[role_msg.id] = {}
 
         # if ctx.guild.id not in role_dicts:
         #     role_dicts[ctx.guild.id] = {}
