@@ -73,11 +73,13 @@ async def create_roles_fun(ctx, roles):
 @commands.has_permissions(manage_roles=True)
 async def stworz_role(ctx):
     try:
-        await ctx.send("Tworzę role... (~1min)")
         args = ctx.message.content.split(" ")[1:]
 
         if len(args) != 1:
             await ctx.send("Użycie: !stworz_role <angielski/cwiczenia/wykladowe>")
+            return
+        
+        await ctx.send("Tworzę role... (~1min)")
 
         if args[0] == "angielski":
             with open('roles_angielski.txt', 'r') as file:
