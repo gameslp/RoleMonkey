@@ -128,12 +128,7 @@ async def sendRoles(rolesIds, ctx, role_message_template):
         if role_msg.id not in role_dicts:
             role_dicts[role_msg.id] = {}
 
-        # if ctx.guild.id not in role_dicts:
-        #     role_dicts[ctx.guild.id] = {}
-
-        # role_dicts[ctx.guild.id].update({emoji_list[index]: discord.utils.get(ctx.guild.roles, id=int(role_id)) for index, role_id in enumerate(role_batch)})
-
-        role_dicts[ctx.message.id].update({emoji_list[index]: discord.utils.get(ctx.guild.roles, id=int(role_id)) for index, role_id in enumerate(role_batch)})
+        role_dicts[role_msg.id].update({emoji_list[index]: discord.utils.get(ctx.guild.roles, id=int(role_id)) for index, role_id in enumerate(role_batch)})
 
         with open("message_ids.txt", "a") as file:
             file.write(f"{role_msg.id}\n")
@@ -179,8 +174,8 @@ async def wyslij_role(ctx):
             role = role_dicts[reaction.message.id][str(reaction.emoji)]
             member = ctx.guild.get_member(user.id)
 
-            if reaction.message.channel.id != 1292113551674179595:
-                continue
+            # if reaction.message.channel.id != 1292113551674179595:
+            #     continue
 
             if role not in member.roles:
                 await member.add_roles(role)
@@ -191,8 +186,8 @@ async def wyslij_role(ctx):
             @bot.event
             async def on_reaction_remove(reaction, user):
                 if user != bot.user and str(reaction.emoji) in role_dicts[reaction.message.id]:
-                    if reaction.message.channel.id != 1292113551674179595:
-                        return
+                    # if reaction.message.channel.id != 1292113551674179595:
+                    #     return
                     
                     role = role_dicts[reaction.message.id][str(reaction.emoji)]
                     member = ctx.guild.get_member(user.id)
