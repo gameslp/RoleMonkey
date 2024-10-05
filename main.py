@@ -208,6 +208,8 @@ async def wyslij_role(ctx):
 async def wyczysc_kanal(ctx):
     try:
         if (ctx.channel.id == 1292113551674179595):
+            with open("message_ids.txt", "w") as file:
+                file.write("")
             await ctx.channel.purge()
     except Exception as e:
         await ctx.send(f"Error: {str(e)}")
