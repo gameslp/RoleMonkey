@@ -158,8 +158,8 @@ async def wyslij_role(ctx):
             role_ids_wykladowe = [int(line.strip()) for line in file.readlines()]
         
         role_message_template_angielski = "Wybierz swoją grupę angielski:\n"
-        role_message_template_cwiczenia = "Wybierz swoje grupę ćwiczenia:\n"
-        role_message_template_wykladowe = "Wybierz swoje grupę wykładową:\n"
+        role_message_template_cwiczenia = "Wybierz swoją grupę ćwiczeniową:\n"
+        role_message_template_wykladowe = "Wybierz swoją grupę wykładową:\n"
 
         role_dicts = await sendRoles(role_ids_angielski, ctx, role_message_template_angielski)
         role_dicts = await sendRoles(role_ids_cwiczenia, ctx, role_message_template_cwiczenia)
