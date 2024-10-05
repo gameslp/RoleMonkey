@@ -140,7 +140,6 @@ async def sendRoles(rolesIds, ctx, role_message_template):
 @commands.has_permissions(manage_roles=True)
 async def wyslij_role(ctx):
     try:
-        await ctx.send("Wysyłam role... (~30s)")
 
         with open("message_ids.txt", "r") as file:
             message_ids = [int(line.strip()) for line in file.readlines()]
@@ -166,8 +165,6 @@ async def wyslij_role(ctx):
         role_dicts = await sendRoles(role_ids_angielski, ctx, role_message_template_angielski)
         role_dicts = await sendRoles(role_ids_cwiczenia, ctx, role_message_template_cwiczenia)
         role_dicts = await sendRoles(role_ids_wykladowe, ctx, role_message_template_wykladowe)
-
-        await ctx.send("Wysłano role.")
 
         def check(reaction, user):
             return user != bot.user and str(reaction.emoji) in role_dicts[ctx.guild.id]
