@@ -177,6 +177,9 @@ async def wyslij_role(ctx):
             role = role_dicts[ctx.guild.id][str(reaction.emoji)]
             member = ctx.guild.get_member(user.id)
 
+            if reaction.message.channel.id != 1292113551674179595:
+                continue
+
             if role not in member.roles:
                 await member.add_roles(role)
                 # await ctx.send(f"Dodano {role.name} dla {user.mention}.")    
@@ -186,6 +189,9 @@ async def wyslij_role(ctx):
             @bot.event
             async def on_reaction_remove(reaction, user):
                 if user != bot.user and str(reaction.emoji) in role_dicts[ctx.guild.id]:
+                    if reaction.message.channel.id != 1292113551674179595:
+                        return
+                    
                     role = role_dicts[ctx.guild.id][str(reaction.emoji)]
                     member = ctx.guild.get_member(user.id)
                     if role in member.roles:
@@ -199,32 +205,12 @@ async def wyslij_role(ctx):
 @bot.command()
 @commands.check(lambda ctx: is_allowed_user(ctx.author.id))
 @commands.has_permissions(manage_roles=True)
-async def start_listener(ctx):
+async def wyczysc_kanal(ctx):
     try:
-        while True:
-            reaction, user = await bot.wait_for('reaction_add')
-            role = role_dicts[ctx.guild.id][str(reaction.emoji)]
-            member = ctx.guild.get_member(user.id)
-
-            if role not in member.roles:
-                await member.add_roles(role)
-                # await ctx.send(f"Dodano {role.name} dla {user.mention}.")    
-                log(f"Dodano {role.name} dla {user.mention}.")
-
-            # Wait for unreact event to remove the role
-            @bot.event
-            async def on_reaction_remove(reaction, user):
-                if user != bot.user and str(reaction.emoji) in role_dicts[ctx.guild.id]:
-                    role = role_dicts[ctx.guild.id][str(reaction.emoji)]
-                    member = ctx.guild.get_member(user.id)
-                    if role in member.roles:
-                        await member.remove_roles(role)
-                        # await ctx.send(f"Usunięto role {role.name} role dla {user.mention}.")
-                        log(f"Usunięto role {role.name} role dla {user.mention}.")
-
+        if (ctx.channel.id == 1292113551674179595):
+            await ctx.channel.purge()
     except Exception as e:
         await ctx.send(f"Error: {str(e)}")
-
 
 # Command to delete roles using their IDs
 @bot.command()
