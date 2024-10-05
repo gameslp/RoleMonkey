@@ -125,10 +125,15 @@ async def sendRoles(rolesIds, ctx, role_message_template):
         for index in range(len(role_batch)):
             await role_msg.add_reaction(emoji_list[index])
 
-        if ctx.guild.id not in role_dicts:
-            role_dicts[ctx.guild.id] = {}
+        if ctx.messaage.id not in role_dicts:
+            role_dicts[ctx.message.id] = {}
 
-        role_dicts[ctx.guild.id].update({emoji_list[index]: discord.utils.get(ctx.guild.roles, id=int(role_id)) for index, role_id in enumerate(role_batch)})
+        # if ctx.guild.id not in role_dicts:
+        #     role_dicts[ctx.guild.id] = {}
+
+        # role_dicts[ctx.guild.id].update({emoji_list[index]: discord.utils.get(ctx.guild.roles, id=int(role_id)) for index, role_id in enumerate(role_batch)})
+
+        role_dicts[ctx.message.id].update({emoji_list[index]: discord.utils.get(ctx.guild.roles, id=int(role_id)) for index, role_id in enumerate(role_batch)})
 
         with open("message_ids.txt", "a") as file:
             file.write(f"{role_msg.id}\n")
@@ -167,11 +172,11 @@ async def wyslij_role(ctx):
         role_dicts = await sendRoles(role_ids_wykladowe, ctx, role_message_template_wykladowe)
 
         def check(reaction, user):
-            return user != bot.user and str(reaction.emoji) in role_dicts[ctx.guild.id]
+            return user != bot.user and str(reaction.emoji) in role_dicts[reaction.message.id]
         
         while True:
             reaction, user = await bot.wait_for('reaction_add', check=check)
-            role = role_dicts[ctx.guild.id][str(reaction.emoji)]
+            role = role_dicts[reaction.message.id][str(reaction.emoji)]
             member = ctx.guild.get_member(user.id)
 
             if reaction.message.channel.id != 1292113551674179595:
@@ -185,11 +190,11 @@ async def wyslij_role(ctx):
             # Wait for unreact event to remove the role
             @bot.event
             async def on_reaction_remove(reaction, user):
-                if user != bot.user and str(reaction.emoji) in role_dicts[ctx.guild.id]:
+                if user != bot.user and str(reaction.emoji) in role_dicts[reaction.message.id]:
                     if reaction.message.channel.id != 1292113551674179595:
                         return
                     
-                    role = role_dicts[ctx.guild.id][str(reaction.emoji)]
+                    role = role_dicts[reaction.message.id][str(reaction.emoji)]
                     member = ctx.guild.get_member(user.id)
                     if role in member.roles:
                         await member.remove_roles(role)
