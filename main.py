@@ -179,7 +179,8 @@ async def wyslij_role(ctx):
 
             if role not in member.roles:
                 await member.add_roles(role)
-                await ctx.send(f"Dodano {role.name} dla {user.mention}.")    
+                # await ctx.send(f"Dodano {role.name} dla {user.mention}.")    
+                log(f"Dodano {role.name} dla {user.mention}.")
 
             # Wait for unreact event to remove the role
             @bot.event
@@ -189,7 +190,8 @@ async def wyslij_role(ctx):
                     member = ctx.guild.get_member(user.id)
                     if role in member.roles:
                         await member.remove_roles(role)
-                        await ctx.send(f"Usunięto role {role.name} role dla {user.mention}.")
+                        # await ctx.send(f"Usunięto role {role.name} role dla {user.mention}.")
+                        log(f"Usunięto role {role.name} role dla {user.mention}.")
 
     except Exception as e:
         await ctx.send(f"Error: {str(e)}")
