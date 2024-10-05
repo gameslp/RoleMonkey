@@ -1,14 +1,10 @@
 import asyncio
+import os
 import discord
 import random
 from discord.ext import commands
 from flask import Flask, jsonify
 from threading import Thread
-
-app = Flask(__name__)
-
-# Global variables to track progress
-logs = []
 
 # Global dictionary to store role mappings per guild
 role_dicts = {}
@@ -28,9 +24,12 @@ emoji_list = [
             "🍎", "🍊", "🍌", "🍉", "🍇", "🍓", "🍈", "🥭", "🌽", "🍅",
 ]
 
-@app.route('/progress', methods=['GET'])
-def get_progress():
-    return f"<body style='background-color:black; color:white;'><pre>{'\n'.join(logs)}</pre></body>"
+with open("images.txt", "r") as file:
+    images = [line.strip() for line in file.readlines()]
+
+def log(message):
+    with open("logs.txt", "a") as file:
+        file.write(f"{message}\n")
 
 def is_allowed_user(user_id):
     try:
@@ -51,7 +50,7 @@ async def create_roles_fun(ctx, roles):
     rate = 1
     for role_name in roles:
         if rate % 3 == 0:
-            logs.append(f"Czekam 5 sekund...")
+            log(f"Czekam 5 sekund...")
             await asyncio.sleep(5)
         role = None
         for existing_role in existing_roles:
@@ -59,12 +58,10 @@ async def create_roles_fun(ctx, roles):
                 role = existing_role
                 break
         if role:
-            print(f"Rola już istnieje: {role_name}")
-            logs.append(f"Rola już istnieje: {role_name}")
+            log(f"Rola już istnieje: {role_name}")
             created_roles.append(role)
         else:
-            print(f"Creating role: {role_name}")
-            logs.append(f"Tworze rolę: {role_name}")
+            log(f"Tworzenie roli: {role_name}")
             role = await ctx.guild.create_role(name=role_name, color=random_color())
             rate += 1
             created_roles.append(role)
@@ -74,13 +71,13 @@ async def create_roles_fun(ctx, roles):
 @bot.command()
 @commands.check(lambda ctx: is_allowed_user(ctx.author.id))
 @commands.has_permissions(manage_roles=True)
-async def create_roles(ctx):
+async def stworz_role(ctx):
     try:
         await ctx.send("Tworzę role... (~1min)")
         args = ctx.message.content.split(" ")[1:]
 
         if len(args) != 1:
-            await ctx.send("Użycie: !create_roles <angielski/cwiczenia/wykladowe>")
+            await ctx.send("Użycie: !stworz_role <angielski/cwiczenia/wykladowe>")
 
         if args[0] == "angielski":
             with open('roles_angielski.txt', 'r') as file:
@@ -110,13 +107,18 @@ async def create_roles(ctx):
 async def sendRoles(rolesIds, ctx, role_message_template):
     for i in range(0, len(rolesIds), 20):
         role_batch = rolesIds[i:i+20]
-        role_message = role_message_template
+        role_message = ""
 
         for index, role_id in enumerate(role_batch):
             role = discord.utils.get(ctx.guild.roles, id=int(role_id))
             role_message += f"{emoji_list[index]} - {role.name}\n"
+        title = ""
+        if i == 0:
+            title = role_message_template
+        embed = discord.Embed(title=title, description=role_message, color=random_color())
+        embed.set_thumbnail(url=random.choice(images))
 
-        role_msg = await ctx.send(role_message)
+        role_msg = await ctx.send(embed=embed)
 
         for index in range(len(role_batch)):
             await role_msg.add_reaction(emoji_list[index])
@@ -134,7 +136,7 @@ async def sendRoles(rolesIds, ctx, role_message_template):
 @bot.command()
 @commands.check(lambda ctx: is_allowed_user(ctx.author.id))
 @commands.has_permissions(manage_roles=True)
-async def send_roles(ctx):
+async def wyslij_role(ctx):
     try:
         await ctx.send("Wysyłam role... (~30s)")
 
@@ -195,7 +197,7 @@ async def send_roles(ctx):
 @bot.command()
 @commands.check(lambda ctx: is_allowed_user(ctx.author.id))
 @commands.has_permissions(manage_roles=True)
-async def delete_roles(ctx):
+async def usun_role(ctx):
     try:
         await ctx.send("Usuwam role... (~30s)")
         with open("role_angielski_ids.txt", "r") as file:
@@ -213,7 +215,7 @@ async def delete_roles(ctx):
             role = discord.utils.get(ctx.guild.roles, id=int(role_id))
             if role:
                 await role.delete()
-                logs.append(f"Usunięto role: {role.name}")
+                log(f"Usunięto role: {role.name}")
 
         with open("role_angielski_ids.txt", "w") as file:
             file.write("")
@@ -224,21 +226,12 @@ async def delete_roles(ctx):
         with open("role_wykladowe_ids.txt", "w") as file:
             file.write("")
 
-        logs.clear()
-        logs.append("Role zostały usunięte.")
+        log("Role zostały usunięte.")
 
         await ctx.send("Role zostały usunięte.")
 
     except Exception as e:
         await ctx.send(f"Error: {str(e)}")
-
-# Start Flask server in a separate thread
-def run_flask():
-    app.run(port=5000)
-
-# Start the Flask server
-flask_thread = Thread(target=run_flask)
-flask_thread.start()
 
 #read from token.private
 with open('token.private', 'r') as file:
