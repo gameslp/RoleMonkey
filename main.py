@@ -1,13 +1,12 @@
 import asyncio
+import json
 import os
 import discord
 import random
 from discord.ext import commands
-from flask import Flask, jsonify
-from threading import Thread
-
 # Global dictionary to store role mappings per guild
 role_dicts = {}
+malpy_role_dicts = {}
 
 # Set up the bot with the required intents
 intents = discord.Intents.all()
@@ -26,6 +25,13 @@ emoji_list = [
 
 with open("images.txt", "r") as file:
     images = [line.strip() for line in file.readlines()]
+
+with open("test.json") as file:
+    # "id": 1291013036064247809,
+    # "test_id": 1292583586624442499,
+    # "name": "Goryl",
+    # "image": "https://zwierzakinadpotokiem.pl/wp-content/uploads/2024/02/gorilla-g0cb28c50f_1920-min.jpg"
+    malpy = json.load(file)["malpy"]
 
 def log(message):
     with open("logs.txt", "a") as file:
@@ -130,8 +136,8 @@ async def sendRoles(rolesIds, ctx, role_message_template):
 
         role_dicts[role_msg.id].update({emoji_list[index]: discord.utils.get(ctx.guild.roles, id=int(role_id)) for index, role_id in enumerate(role_batch)})
 
-        with open("message_ids.txt", "a") as file:
-            file.write(f"{role_msg.id}\n")
+        # with open("message_ids.txt", "a") as file:
+        #     file.write(f"{role_msg.id}\n")
 
     return role_dicts
 
@@ -141,13 +147,13 @@ async def sendRoles(rolesIds, ctx, role_message_template):
 async def wyslij_role(ctx):
     try:
 
-        with open("message_ids.txt", "r") as file:
-            message_ids = [int(line.strip()) for line in file.readlines()]
-            for message_id in message_ids:
-                role_msg = await ctx.fetch_message(message_id)
-                await role_msg.delete()
-        with open("message_ids.txt", "w") as file:
-            file.write("")
+        # with open("message_ids.txt", "r") as file:
+        #     message_ids = [int(line.strip()) for line in file.readlines()]
+        #     for message_id in message_ids:
+        #         role_msg = await ctx.fetch_message(message_id)
+        #         await role_msg.delete()
+        # with open("message_ids.txt", "w") as file:
+        #     file.write("")
             
         with open("role_angielski_ids.txt", "r") as file:
             role_ids_angielski = [int(line.strip()) for line in file.readlines()]
@@ -204,9 +210,9 @@ async def wyslij_role(ctx):
 @commands.has_permissions(manage_roles=True)
 async def wyczysc_kanal(ctx):
     try:
-        if (ctx.channel.id == 1292113551674179595):
-            with open("message_ids.txt", "w") as file:
-                file.write("")
+        if ctx.channel.id == 1292113551674179595 or ctx.channel.id == 1292593060487761950:
+            # with open("message_ids.txt", "w") as file:
+            #     file.write("")
             await ctx.channel.purge()
     except Exception as e:
         await ctx.send(f"Error: {str(e)}")
@@ -254,5 +260,48 @@ async def usun_role(ctx):
 #read from token.private
 with open('token.private', 'r') as file:
     token = file.read().strip()
+
+@bot.command()
+@commands.check(lambda ctx: is_allowed_user(ctx.author.id))
+@commands.has_permissions(manage_roles=True)
+async def wyslij_malpy(ctx):
+    try:
+        def check(reaction, user):
+            return user != bot.user and str(reaction.emoji) in malpy_role_dicts[reaction.message.id]
+
+        for malpa in malpy:
+            embed = discord.Embed(title=malpa["name"], color=random_color())
+            embed.set_thumbnail(url=malpa["image"])
+            msg = await ctx.send(embed=embed)
+            await msg.add_reaction(emoji_list[0])
+            if msg.id not in malpy_role_dicts:
+                malpy_role_dicts[msg.id] = {}
+
+            malpy_role_dicts[msg.id].update({emoji_list[0]: discord.utils.get(ctx.guild.roles, id=int(malpa["id"]))})
+
+        while True:
+            reaction, user = await bot.wait_for('reaction_add', check=check)
+            malpy_role = malpy_role_dicts[reaction.message.id][str(reaction.emoji)]
+            member = ctx.guild.get_member(user.id)
+
+            for malpa in malpy:
+                temp = discord.utils.get(ctx.guild.roles, id=int(malpa["id"]))
+                if temp in member.roles:
+                    await member.remove_roles(temp)
+
+            await member.add_roles(malpy_role)
+
+            @bot.event
+            async def on_reaction_remove(reaction, user):
+                if user != bot.user and str(reaction.emoji) in malpy_role_dicts[reaction.message.id]:
+                    
+                    role = malpy_role_dicts[reaction.message.id][str(reaction.emoji)]
+                    member = ctx.guild.get_member(user.id)
+                    if role in member.roles:
+                        await member.remove_roles(role)
+                        log(f"Usunięto role {role.name} role dla {user.mention}.")
+
+    except Exception as e:
+        await ctx.send(f"Error: {str(e)}")
 
 bot.run(token)
