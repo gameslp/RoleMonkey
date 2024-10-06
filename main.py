@@ -26,7 +26,7 @@ emoji_list = [
 with open("images.txt", "r") as file:
     images = [line.strip() for line in file.readlines()]
 
-with open("test.json") as file:
+with open("malpy.json") as file:
     # "id": 1291013036064247809,
     # "test_id": 1292583586624442499,
     # "name": "Goryl",
