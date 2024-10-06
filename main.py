@@ -6,7 +6,6 @@ import random
 from discord.ext import commands
 # Global dictionary to store role mappings per guild
 role_dicts = {}
-malpy_role_dicts = {}
 
 # Set up the bot with the required intents
 intents = discord.Intents.all()
@@ -26,11 +25,7 @@ emoji_list = [
 with open("images.txt", "r") as file:
     images = [line.strip() for line in file.readlines()]
 
-with open("malpy.json") as file:
-    # "id": 1291013036064247809,
-    # "test_id": 1292583586624442499,
-    # "name": "Goryl",
-    # "image": "https://zwierzakinadpotokiem.pl/wp-content/uploads/2024/02/gorilla-g0cb28c50f_1920-min.jpg"
+with open("malpy.json", encoding="utf-8") as file:
     malpy = json.load(file)["malpy"]
 
 def log(message):
@@ -46,7 +41,6 @@ def is_allowed_user(user_id):
         print(f"Error reading allowed_ids.txt: {str(e)}")
         return False
 
-# Function to generate a random color
 def random_color():
     return discord.Color(random.randint(0x000000, 0xFFFFFF))
 
@@ -73,7 +67,6 @@ async def create_roles_fun(ctx, roles):
             created_roles.append(role)
     return created_roles
 
-# Load roles from a text file, create them in the server, and send a message with reactions
 @bot.command()
 @commands.check(lambda ctx: is_allowed_user(ctx.author.id))
 @commands.has_permissions(manage_roles=True)
@@ -174,33 +167,6 @@ async def wyslij_role(ctx):
 
         def check(reaction, user):
             return user != bot.user and str(reaction.emoji) in role_dicts[reaction.message.id]
-        
-        while True:
-            reaction, user = await bot.wait_for('reaction_add', check=check)
-            role = role_dicts[reaction.message.id][str(reaction.emoji)]
-            member = ctx.guild.get_member(user.id)
-
-            # if reaction.message.channel.id != 1292113551674179595:
-            #     continue
-
-            if role not in member.roles:
-                await member.add_roles(role)
-                # await ctx.send(f"Dodano {role.name} dla {user.mention}.")    
-                log(f"Dodano {role.name} dla {user.mention}.")
-
-            # Wait for unreact event to remove the role
-            @bot.event
-            async def on_reaction_remove(reaction, user):
-                if user != bot.user and str(reaction.emoji) in role_dicts[reaction.message.id]:
-                    # if reaction.message.channel.id != 1292113551674179595:
-                    #     return
-                    
-                    role = role_dicts[reaction.message.id][str(reaction.emoji)]
-                    member = ctx.guild.get_member(user.id)
-                    if role in member.roles:
-                        await member.remove_roles(role)
-                        # await ctx.send(f"Usunięto role {role.name} role dla {user.mention}.")
-                        log(f"Usunięto role {role.name} role dla {user.mention}.")
 
     except Exception as e:
         await ctx.send(f"Error: {str(e)}")
@@ -266,42 +232,37 @@ with open('token.private', 'r') as file:
 @commands.has_permissions(manage_roles=True)
 async def wyslij_malpy(ctx):
     try:
-        def check(reaction, user):
-            return user != bot.user and str(reaction.emoji) in malpy_role_dicts[reaction.message.id]
-
         for malpa in malpy:
             embed = discord.Embed(title=malpa["name"], color=random_color())
             embed.set_thumbnail(url=malpa["image"])
             msg = await ctx.send(embed=embed)
-            await msg.add_reaction(emoji_list[0])
-            if msg.id not in malpy_role_dicts:
-                malpy_role_dicts[msg.id] = {}
+            await msg.add_reaction('✔️')
+            if msg.id not in role_dicts:
+                role_dicts[msg.id] = {}
 
-            malpy_role_dicts[msg.id].update({emoji_list[0]: discord.utils.get(ctx.guild.roles, id=int(malpa["id"]))})
-
-        while True:
-            reaction, user = await bot.wait_for('reaction_add', check=check)
-            malpy_role = malpy_role_dicts[reaction.message.id][str(reaction.emoji)]
-            member = ctx.guild.get_member(user.id)
-
-            for malpa in malpy:
-                temp = discord.utils.get(ctx.guild.roles, id=int(malpa["id"]))
-                if temp in member.roles:
-                    await member.remove_roles(temp)
-
-            await member.add_roles(malpy_role)
-
-            @bot.event
-            async def on_reaction_remove(reaction, user):
-                if user != bot.user and str(reaction.emoji) in malpy_role_dicts[reaction.message.id]:
-                    
-                    role = malpy_role_dicts[reaction.message.id][str(reaction.emoji)]
-                    member = ctx.guild.get_member(user.id)
-                    if role in member.roles:
-                        await member.remove_roles(role)
-                        log(f"Usunięto role {role.name} role dla {user.mention}.")
-
+            role_dicts[msg.id].update({'✔️': discord.utils.get(ctx.guild.roles, id=int(malpa["test_id"]))})
     except Exception as e:
         await ctx.send(f"Error: {str(e)}")
+
+@bot.event
+async def on_reaction_add(reaction, user):
+    message_id = reaction.message.id
+    if message_id in role_dicts:
+        if user != bot.user and str(reaction.emoji) in role_dicts[reaction.message.id]:
+            role = role_dicts[reaction.message.id][str(reaction.emoji)]
+            member = reaction.message.guild.get_member(user.id)
+
+            if role not in member.roles:
+                await member.add_roles(role)
+
+@bot.event
+async def on_reaction_remove(reaction, user):
+    message_id = reaction.message.id
+    if message_id in role_dicts:
+        role = role_dicts[reaction.message.id][str(reaction.emoji)]
+        member = reaction.message.guild.get_member(user.id)
+
+        if role in member.roles:
+            await member.remove_roles(role)
 
 bot.run(token)
